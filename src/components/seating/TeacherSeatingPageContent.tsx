@@ -1,21 +1,20 @@
 "use client";
 
 import { Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { usePresentation } from "@/contexts/PresentationContext";
 import { SeatingWorkspace } from "@/components/seating/SeatingWorkspace";
 import { PageHeader } from "@/components/ui/PageHeader";
 
 function TeacherSeatingInner() {
-  const searchParams = useSearchParams();
-  const classMode = searchParams.get("class") === "1";
+  const { presentation } = usePresentation();
 
   return (
     <>
-      {!classMode ? (
+      {!presentation ? (
         <PageHeader
           eyebrow="Teacher Console"
           title="梅花座位表"
-          description="編排座位、進行課堂互動。完成後按「公布給學生」，學生即可透過公開連結檢視。"
+          description="編排座位、進行課堂互動。上課時可開啟投影模式，收合教師操作區，直接投影此頁給全班。"
         />
       ) : null}
       <SeatingWorkspace />
