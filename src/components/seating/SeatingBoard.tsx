@@ -15,39 +15,18 @@ interface SeatingBoardProps {
   onSeatClick?: (key: string) => void;
 }
 
-function seatClass(
+function seatVisualClass(
   key: string,
   state: SeatingState,
   hasStudent: boolean,
-  studentView: boolean,
 ): string {
-  const classes = [
-    "relative flex min-h-[52px] min-w-[52px] flex-col items-center justify-center rounded-lg border text-center transition",
-  ];
-  if (state.blocked.includes(key)) {
-    classes.push("border-slate-300 bg-slate-200 text-slate-400");
-    return classes.join(" ");
-  }
-  if (!hasStudent && state.assignments[key] === undefined) {
-    classes.push("border-dashed border-slate-200 bg-white text-slate-300");
-    return classes.join(" ");
-  }
-  if (state.absent.includes(key)) {
-    classes.push("border-slate-400 bg-slate-100 text-slate-500 line-through");
-  } else if (state.fixed[key]) {
-    classes.push("border-amber-400 bg-amber-50 text-amber-900");
-  } else if (state.draft[key]) {
-    classes.push("border-blue-300 bg-blue-50 text-blue-900 border-dashed");
-  } else {
-    const parity = (key.charCodeAt(0) + Number(key.split(",")[1] ?? 0)) % 2;
-    classes.push(
-      parity === 0
-        ? "border-blue-200 bg-blue-50 text-slate-800"
-        : "border-violet-200 bg-violet-50 text-slate-800",
-    );
-  }
-  if (!studentView) classes.push("cursor-pointer hover:scale-[1.02]");
-  return classes.join(" ");
+  if (state.blocked.includes(key)) return "seat-tile seat-blocked";
+  if (!hasStudent && state.assignments[key] === undefined) return "seat-tile seat-empty";
+  if (state.absent.includes(key)) return "seat-tile seat-absent";
+  if (state.fixed[key]) return "seat-tile seat-fixed";
+  if (state.draft[key]) return "seat-tile seat-draft";
+  const parity = (key.charCodeAt(0) + Number(key.split(",")[1] ?? 0)) % 2;
+  return parity === 0 ? "seat-tile seat-a" : "seat-tile seat-b";
 }
 
 export function SeatingBoard({
@@ -65,11 +44,11 @@ export function SeatingBoard({
   const { rows, cols } = state;
 
   return (
-    <div className="overflow-auto rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-      <div className="mb-3 text-center text-xs font-semibold text-slate-500">講台</div>
+    <div className="card overflow-auto p-5 sm:p-6">
+      <div className="podium">講台</div>
       <div
-        className="mx-auto grid gap-1.5"
-        style={{ gridTemplateColumns: `repeat(${cols}, minmax(52px, 1fr))` }}
+        className="mx-auto grid gap-2"
+        style={{ gridTemplateColumns: `repeat(${cols}, minmax(58px, 1fr))` }}
       >
         {Array.from({ length: rows }).map((_, r) =>
           Array.from({ length: cols }).map((__, c) => {
@@ -81,6 +60,7 @@ export function SeatingBoard({
             const student = studentId ? map.get(studentId) : undefined;
             const bonus = studentId ? state.bonus[studentId] ?? 0 : 0;
             const isSelected = selectedSeat === key;
+            const interactive = !studentView && !state.blocked.includes(key);
 
             return (
               <button
@@ -88,37 +68,43 @@ export function SeatingBoard({
                 type="button"
                 disabled={studentView || state.blocked.includes(key)}
                 onClick={() => onSeatClick?.(key)}
-                className={`${seatClass(key, state, Boolean(student), studentView)} ${
-                  isSelected ? "ring-2 ring-blue-500" : ""
-                } ${absentMode && !state.blocked.includes(key) ? "hover:ring-2 hover:ring-slate-400" : ""} ${
-                  bonusMode && student ? "hover:ring-2 hover:ring-amber-400" : ""
-                }`}
+                className={`${seatVisualClass(key, state, Boolean(student))} ${
+                  interactive ? "seat-tile-interactive" : ""
+                } ${isSelected ? "seat-selected" : ""} ${
+                  absentMode && interactive ? "ring-1 ring-slate-300" : ""
+                } ${bonusMode && student && interactive ? "ring-1 ring-amber-300" : ""}`}
                 aria-label={student ? `${student.name} 座位` : `空位 ${r + 1}-${c + 1}`}
               >
                 {state.blocked.includes(key) ? (
-                  <span className="text-lg">✕</span>
+                  <span className="text-lg font-light">✕</span>
                 ) : student ? (
                   <>
                     <span className="max-w-full truncate px-1 text-xs font-bold">{student.name}</span>
-                    {student.studentNo ? (
-                      <span className="text-[10px] text-slate-500">{student.studentNo}</span>
+                    {student.classNo && student.studentNo ? (
+                      <span className="text-[10px] text-[var(--ink-muted)]">
+                        {student.classNo}-{student.studentNo}
+                      </span>
+                    ) : student.studentNo ? (
+                      <span className="text-[10px] text-[var(--ink-muted)]">{student.studentNo}</span>
                     ) : null}
                     {showScores && student.segmentScore != null ? (
-                      <span className="text-[10px] text-blue-700">{student.segmentScore}</span>
+                      <span className="mt-0.5 rounded-full bg-white/70 px-1.5 text-[10px] font-bold text-[var(--brand)]">
+                        {student.segmentScore}
+                      </span>
                     ) : null}
                     {bonus !== 0 ? (
-                      <span className="absolute -right-1 -top-1 rounded-full bg-amber-500 px-1.5 text-[10px] font-bold text-white">
+                      <span className="absolute -right-1.5 -top-1.5 rounded-full bg-[var(--accent)] px-1.5 py-0.5 text-[10px] font-bold text-white shadow">
                         {bonus > 0 ? `+${bonus}` : bonus}
                       </span>
                     ) : null}
                     {state.absent.includes(key) ? (
-                      <span className="absolute left-1 top-1 rounded bg-slate-500 px-1 text-[9px] text-white">
+                      <span className="absolute left-1 top-1 rounded-md bg-slate-600 px-1 text-[9px] font-bold text-white">
                         缺
                       </span>
                     ) : null}
                   </>
                 ) : mode === "edit" ? (
-                  <span className="text-[10px] text-slate-300">空</span>
+                  <span className="text-[10px] text-[#b7c3d1]">空</span>
                 ) : null}
               </button>
             );

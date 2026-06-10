@@ -43,28 +43,33 @@ export function StudentSeatingView({ initialGroupId }: StudentSeatingViewProps) 
   const isPublished = Boolean(currentGroup?.published && state.published);
 
   if (loading) {
-    return <p className="text-sm text-slate-500">載入中…</p>;
+    return (
+      <div className="card flex min-h-[200px] items-center justify-center text-sm text-[var(--ink-muted)]">
+        載入座位表中…
+      </div>
+    );
   }
 
   if (groups.length === 0) {
     return (
-      <div className="rounded-xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-600">
-        目前尚無已公布的座位表，請等待教師公布。
+      <div className="card p-10 text-center">
+        <div className="mx-auto mb-3 text-3xl">📋</div>
+        <p className="text-sm text-[var(--ink-muted)]">目前尚無已公布的座位表，請等待教師公布。</p>
       </div>
     );
   }
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-        <label className="text-sm font-semibold" htmlFor="studentGroup">
-          班級
+      <div className="card flex flex-wrap items-center gap-3 p-4">
+        <label className="text-sm font-bold text-[var(--ink)]" htmlFor="studentGroup">
+          選擇班級
         </label>
         <select
           id="studentGroup"
           value={groupId}
           onChange={(e) => setGroupId(e.target.value)}
-          className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-semibold"
+          className="select w-auto min-w-[160px] font-semibold"
         >
           {groups.map((g) => (
             <option key={g.id} value={g.id}>
@@ -72,18 +77,13 @@ export function StudentSeatingView({ initialGroupId }: StudentSeatingViewProps) 
             </option>
           ))}
         </select>
-        <span className="text-xs text-slate-500">學生檢視模式（唯讀）</span>
+        <span className="badge badge-muted">唯讀檢視</span>
       </div>
 
       {isPublished ? (
-        <SeatingBoard
-          state={state}
-          students={students}
-          mode="result"
-          studentView
-        />
+        <SeatingBoard state={state} students={students} mode="result" studentView />
       ) : (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 p-6 text-sm text-amber-900">
+        <div className="rounded-2xl border border-[#f0d49a] bg-[var(--accent-soft)] p-6 text-sm text-[#8a5a00]">
           此班級座位表尚未公布。
         </div>
       )}

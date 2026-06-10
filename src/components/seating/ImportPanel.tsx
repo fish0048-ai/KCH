@@ -29,37 +29,37 @@ export function ImportPanel({ onImported }: { onImported: () => void }) {
   };
 
   return (
-    <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-      <h3 className="text-sm font-bold text-slate-900">從 CSV 匯入學生資料</h3>
-      <p className="mt-1 text-xs text-slate-500">
-        對應試算表「801A名單 / 804A名單 / 806B名單」分頁。欄位：自然分組、班級、座號、姓名、加分。
+    <section className="card p-4">
+      <h3 className="text-sm font-bold text-[var(--ink)]">手動 CSV 匯入</h3>
+      <p className="mt-1 text-xs text-[var(--ink-muted)]">
+        欄位：自然分組、班級、座號、姓名、加分
       </p>
-      <label className="mt-3 block text-xs font-semibold text-slate-600">
-        分組名稱（試算表分頁名）
+      <label className="mt-3 block text-xs font-semibold text-[var(--ink-muted)]">
+        分組名稱
         <input
           value={groupName}
           onChange={(e) => setGroupName(e.target.value)}
-          className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+          className="input mt-1"
           placeholder="801A名單"
         />
       </label>
       <textarea
         value={text}
         onChange={(e) => setText(e.target.value)}
-        rows={6}
-        placeholder={`自然分組,班級,座號,姓名,加分\n801理A,801,2,蔡昀庭,2\n801理A,801,3,王唯宇,2`}
-        className="mt-3 w-full rounded-lg border border-slate-200 p-3 font-mono text-xs"
+        rows={5}
+        placeholder={`自然分組,班級,座號,姓名,加分\n801理A,801,2,蔡昀庭,2`}
+        className="textarea mt-3 font-mono"
       />
       <div className="mt-3 flex items-center gap-3">
         <button
           type="button"
           onClick={handleImport}
           disabled={busy || !text.trim()}
-          className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+          className="btn btn-ghost text-xs disabled:opacity-50"
         >
-          {busy ? "匯入中…" : "匯入"}
+          {busy ? "匯入中…" : "匯入 CSV"}
         </button>
-        {message ? <span className="text-xs text-slate-600">{message}</span> : null}
+        {message ? <span className="text-xs text-[var(--ink-muted)]">{message}</span> : null}
       </div>
     </section>
   );
