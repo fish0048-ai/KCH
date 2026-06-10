@@ -12,6 +12,8 @@ import {
   swapAssignments,
   countAvailableSeats,
   createEmptySeating,
+  getSeatedStudentIds,
+  resolveSeatStudentId,
 } from "@/lib/seating/logic";
 import { recordBonus, syncSessionBonuses } from "@/lib/firebase/bonus";
 import {
@@ -166,9 +168,9 @@ export function SeatingWorkspace() {
 
   const availableCount = useMemo(() => countAvailableSeats(state), [state]);
   const seatedStudents = useMemo(() => {
-    const ids = new Set(Object.values(state.assignments));
+    const ids = getSeatedStudentIds(state);
     return students.filter((s) => ids.has(s.id));
-  }, [students, state.assignments]);
+  }, [students, state]);
 
   const handleSeatClick = (key: string) => {
     if (studentPreview) return;
@@ -180,7 +182,7 @@ export function SeatingWorkspace() {
       return;
     }
     if (bonusMode) {
-      const studentId = state.assignments[key];
+      const studentId = resolveSeatStudentId(state, key, "result");
       if (!studentId) return;
       void awardBonus(studentId, 1, "seat");
       return;

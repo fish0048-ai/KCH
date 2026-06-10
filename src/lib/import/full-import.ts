@@ -148,6 +148,10 @@ function convertSeatingJson(
     if (id) assignments[coord] = id;
   });
 
+  Object.entries(fixed).forEach(([coord, id]) => {
+    if (!assignments[coord]) assignments[coord] = id;
+  });
+
   students.forEach((s) => {
     if (s.bonusPoints && s.classNo && s.studentNo) {
       bonus[studentDocId(s.classNo, s.studentNo)] = s.bonusPoints;

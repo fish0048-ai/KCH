@@ -108,3 +108,23 @@ export function swapAssignments(
 export function studentMap(students: Student[]): Map<string, Student> {
   return new Map(students.map((s) => [s.id, s]));
 }
+
+/** 結果模式：合併隨機座位與固定座位（固定座優先顯示，assignments 可覆寫同格） */
+export function mergedResultAssignments(state: SeatingState): Record<string, string> {
+  return { ...state.fixed, ...state.assignments };
+}
+
+export function resolveSeatStudentId(
+  state: SeatingState,
+  key: string,
+  mode: "edit" | "result",
+): string | undefined {
+  if (mode === "result") {
+    return state.assignments[key] ?? state.fixed[key];
+  }
+  return state.fixed[key] || state.draft[key];
+}
+
+export function getSeatedStudentIds(state: SeatingState): Set<string> {
+  return new Set(Object.values(mergedResultAssignments(state)));
+}

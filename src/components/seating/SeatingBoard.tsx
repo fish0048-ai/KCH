@@ -1,7 +1,7 @@
 "use client";
 
 import { coordKey, type SeatingState, type Student } from "@/types/seating";
-import { studentMap } from "@/lib/seating/logic";
+import { resolveSeatStudentId, studentMap } from "@/lib/seating/logic";
 
 interface SeatingBoardProps {
   state: SeatingState;
@@ -20,12 +20,17 @@ function seatVisualClass(
   key: string,
   state: SeatingState,
   hasStudent: boolean,
+  mode: "edit" | "result",
+  studentView: boolean,
 ): string {
   if (state.blocked.includes(key)) return "seat-tile seat-blocked";
-  if (!hasStudent && state.assignments[key] === undefined) return "seat-tile seat-empty";
+  if (!hasStudent) return "seat-tile seat-empty";
   if (state.absent.includes(key)) return "seat-tile seat-absent";
-  if (state.fixed[key]) return "seat-tile seat-fixed";
-  if (state.draft[key]) return "seat-tile seat-draft";
+  if (!studentView && mode === "edit" && state.fixed[key]) return "seat-tile seat-fixed";
+  if (!studentView && mode === "edit" && state.draft[key]) return "seat-tile seat-draft";
+  if (!studentView && mode === "result" && state.fixed[key] && !state.assignments[key]) {
+    return "seat-tile seat-fixed";
+  }
   const parity = (key.charCodeAt(0) + Number(key.split(",")[1] ?? 0)) % 2;
   return parity === 0 ? "seat-tile seat-a" : "seat-tile seat-b";
 }
@@ -56,10 +61,7 @@ export function SeatingBoard({
         {Array.from({ length: rows }).map((_, r) =>
           Array.from({ length: cols }).map((__, c) => {
             const key = coordKey(r, c);
-            const studentId =
-              mode === "result"
-                ? state.assignments[key]
-                : state.fixed[key] || state.draft[key];
+            const studentId = resolveSeatStudentId(state, key, mode);
             const student = studentId ? map.get(studentId) : undefined;
             const bonus = studentId ? state.bonus[studentId] ?? 0 : 0;
             const isSelected = selectedSeat === key;
@@ -71,7 +73,7 @@ export function SeatingBoard({
                 type="button"
                 disabled={studentView || state.blocked.includes(key)}
                 onClick={() => onSeatClick?.(key)}
-                className={`${seatVisualClass(key, state, Boolean(student))} ${
+                className={`${seatVisualClass(key, state, Boolean(student), mode, studentView)} ${
                   projection ? "seat-tile-projection" : ""
                 } ${interactive ? "seat-tile-interactive" : ""} ${isSelected ? "seat-selected" : ""} ${
                   absentMode && interactive ? "ring-1 ring-slate-300" : ""
