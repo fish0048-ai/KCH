@@ -1,0 +1,11 @@
+# Cursor Rules for Project
+
+- Always respond in Traditional Chinese (繁體中文).
+- All internal reasoning and technical processing should be performed in English.
+- Always generate Git Commit Messages in Traditional Chinese (繁體中文).
+- Git Commit Message Format: `<type>: <subject>`
+- Examples:
+    - `feat: 新增成績計算邏輯`
+    - `fix: 修復登入跳轉問題`
+    - `docs: 更新部署指引`
+- When the user asks to "generate commit message", always provide it in the above format and language.
