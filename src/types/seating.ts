@@ -21,6 +21,28 @@ export interface SeatCoord {
   c: number;
 }
 
+export type LotteryPhase = "idle" | "spinning" | "revealed";
+
+export interface LiveLottery {
+  open: boolean;
+  phase: LotteryPhase;
+  studentId?: string;
+  updatedAt?: string;
+}
+
+export interface LiveBonusFlash {
+  studentId: string;
+  name: string;
+  delta: number;
+  sessionTotal: number;
+  at: string;
+}
+
+export interface LiveSession {
+  lottery?: LiveLottery;
+  bonusFlash?: LiveBonusFlash | null;
+}
+
 export interface SeatingState {
   rows: number;
   cols: number;
@@ -32,6 +54,7 @@ export interface SeatingState {
   bonus: Record<string, number>;
   published: boolean;
   updatedAt?: string;
+  live?: LiveSession;
 }
 
 export type EditMode = "block" | "fix";

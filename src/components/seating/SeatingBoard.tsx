@@ -11,6 +11,7 @@ interface SeatingBoardProps {
   absentMode?: boolean;
   bonusMode?: boolean;
   showScores?: boolean;
+  projection?: boolean;
   selectedSeat?: string | null;
   onSeatClick?: (key: string) => void;
 }
@@ -37,18 +38,20 @@ export function SeatingBoard({
   absentMode = false,
   bonusMode = false,
   showScores = false,
+  projection = false,
   selectedSeat,
   onSeatClick,
 }: SeatingBoardProps) {
   const map = studentMap(students);
   const { rows, cols } = state;
+  const minSeat = projection ? 88 : 58;
 
   return (
-    <div className="card overflow-auto p-5 sm:p-6">
-      <div className="podium">講台</div>
+    <div className={`overflow-auto ${projection ? "projection-board" : "card p-5 sm:p-6"}`}>
+      <div className={projection ? "podium podium-projection" : "podium"}>講台</div>
       <div
-        className="mx-auto grid gap-2"
-        style={{ gridTemplateColumns: `repeat(${cols}, minmax(58px, 1fr))` }}
+        className={`mx-auto grid ${projection ? "gap-3" : "gap-2"}`}
+        style={{ gridTemplateColumns: `repeat(${cols}, minmax(${minSeat}px, 1fr))` }}
       >
         {Array.from({ length: rows }).map((_, r) =>
           Array.from({ length: cols }).map((__, c) => {
@@ -69,8 +72,8 @@ export function SeatingBoard({
                 disabled={studentView || state.blocked.includes(key)}
                 onClick={() => onSeatClick?.(key)}
                 className={`${seatVisualClass(key, state, Boolean(student))} ${
-                  interactive ? "seat-tile-interactive" : ""
-                } ${isSelected ? "seat-selected" : ""} ${
+                  projection ? "seat-tile-projection" : ""
+                } ${interactive ? "seat-tile-interactive" : ""} ${isSelected ? "seat-selected" : ""} ${
                   absentMode && interactive ? "ring-1 ring-slate-300" : ""
                 } ${bonusMode && student && interactive ? "ring-1 ring-amber-300" : ""}`}
                 aria-label={student ? `${student.name} 座位` : `空位 ${r + 1}-${c + 1}`}
@@ -79,21 +82,39 @@ export function SeatingBoard({
                   <span className="text-lg font-light">✕</span>
                 ) : student ? (
                   <>
-                    <span className="max-w-full truncate px-1 text-xs font-bold">{student.name}</span>
+                    <span
+                      className={`max-w-full truncate px-1 font-bold ${
+                        projection ? "text-base sm:text-lg" : "text-xs"
+                      }`}
+                    >
+                      {student.name}
+                    </span>
                     {student.classNo && student.studentNo ? (
-                      <span className="text-[10px] text-[var(--ink-muted)]">
+                      <span className={projection ? "text-xs text-[var(--ink-muted)]" : "text-[10px] text-[var(--ink-muted)]"}>
                         {student.classNo}-{student.studentNo}
                       </span>
                     ) : student.studentNo ? (
-                      <span className="text-[10px] text-[var(--ink-muted)]">{student.studentNo}</span>
+                      <span className={projection ? "text-xs text-[var(--ink-muted)]" : "text-[10px] text-[var(--ink-muted)]"}>
+                        {student.studentNo}
+                      </span>
                     ) : null}
                     {showScores && student.segmentScore != null ? (
-                      <span className="mt-0.5 rounded-full bg-white/70 px-1.5 text-[10px] font-bold text-[var(--brand)]">
+                      <span
+                        className={`mt-0.5 rounded-full bg-white/70 font-bold text-[var(--brand)] ${
+                          projection ? "px-2 text-xs" : "px-1.5 text-[10px]"
+                        }`}
+                      >
                         {student.segmentScore}
                       </span>
                     ) : null}
                     {bonus !== 0 ? (
-                      <span className="absolute -right-1.5 -top-1.5 rounded-full bg-[var(--accent)] px-1.5 py-0.5 text-[10px] font-bold text-white shadow">
+                      <span
+                        className={`absolute rounded-full bg-[var(--accent)] font-bold text-white shadow ${
+                          projection
+                            ? "-right-2 -top-2 px-2.5 py-1 text-sm"
+                            : "-right-1.5 -top-1.5 px-1.5 py-0.5 text-[10px]"
+                        }`}
+                      >
                         {bonus > 0 ? `+${bonus}` : bonus}
                       </span>
                     ) : null}

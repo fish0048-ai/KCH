@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import { Geist_Mono } from "next/font/google";
 import { Noto_Sans_TC } from "next/font/google";
+import { Suspense } from "react";
 import { AuthProvider } from "@/contexts/AuthContext";
-import { AppNav } from "@/components/layout/AppNav";
+import { ConditionalAppShell } from "@/components/layout/ConditionalAppShell";
 import "./globals.css";
 
 const notoSansTc = Noto_Sans_TC({
@@ -30,8 +31,9 @@ export default function RootLayout({
     <html lang="zh-Hant" className={`${notoSansTc.variable} ${geistMono.variable} h-full`}>
       <body className="app-shell antialiased">
         <AuthProvider>
-          <AppNav />
-          <main className="app-main">{children}</main>
+          <Suspense fallback={<main className="app-main">{children}</main>}>
+            <ConditionalAppShell>{children}</ConditionalAppShell>
+          </Suspense>
         </AuthProvider>
       </body>
     </html>

@@ -1,6 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { SeatingBoard } from "@/components/seating/SeatingBoard";
 import { LotteryModal } from "@/components/seating/LotteryModal";
 import { ImportPanel } from "@/components/seating/ImportPanel";
@@ -11,6 +13,7 @@ import {
   countAvailableSeats,
   createEmptySeating,
 } from "@/lib/seating/logic";
+import { recordBonus, syncSessionBonuses } from "@/lib/firebase/bonus";
 import {
   listGroups,
   publishSeating,
@@ -23,6 +26,7 @@ import type {
   EditMode,
   FixSubMode,
   Group,
+  LiveLottery,
   SeatingState,
   Student,
   ViewMode,
@@ -31,11 +35,13 @@ import type {
 function ChipButton({
   active,
   warn,
+  large,
   onClick,
   children,
 }: {
   active?: boolean;
   warn?: boolean;
+  large?: boolean;
   onClick: () => void;
   children: React.ReactNode;
 }) {
@@ -43,7 +49,9 @@ function ChipButton({
     <button
       type="button"
       onClick={onClick}
-      className={`btn btn-chip ${active ? (warn ? "btn-chip-warn-active" : "btn-chip-active") : ""}`}
+      className={`btn btn-chip ${large ? "btn-chip-lg" : ""} ${
+        active ? (warn ? "btn-chip-warn-active" : "btn-chip-active") : ""
+      }`}
     >
       {children}
     </button>
@@ -51,23 +59,31 @@ function ChipButton({
 }
 
 export function SeatingWorkspace() {
+  const searchParams = useSearchParams();
+  const classMode = searchParams.get("class") === "1";
+
   const [groups, setGroups] = useState<Group[]>([]);
   const [groupId, setGroupId] = useState("");
   const [students, setStudents] = useState<Student[]>([]);
   const [state, setState] = useState<SeatingState>(createEmptySeating());
-  const [viewMode, setViewMode] = useState<ViewMode>("edit");
+  const [viewMode, setViewMode] = useState<ViewMode>("result");
   const [editMode, setEditMode] = useState<EditMode>("block");
   const [fixSubMode, setFixSubMode] = useState<FixSubMode>("draft");
   const [studentPreview, setStudentPreview] = useState(false);
   const [absentMode, setAbsentMode] = useState(false);
-  const [bonusMode, setBonusMode] = useState(false);
+  const [bonusMode, setBonusMode] = useState(classMode);
   const [showScores, setShowScores] = useState(false);
   const [selectedSeat, setSelectedSeat] = useState<string | null>(null);
   const [lotteryOpen, setLotteryOpen] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
-  const [asideOpen, setAsideOpen] = useState(true);
+  const [syncing, setSyncing] = useState(false);
+  const [asideOpen, setAsideOpen] = useState(!classMode);
   const [importOpen, setImportOpen] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
+  const stateRef = useRef(state);
+  stateRef.current = state;
+
+  const currentGroup = groups.find((g) => g.id === groupId);
 
   useEffect(() => subscribeGroups(setGroups), []);
   useEffect(() => {
@@ -94,6 +110,60 @@ export function SeatingWorkspace() {
     [groupId],
   );
 
+  const awardBonus = useCallback(
+    async (studentId: string, delta: number, source: "seat" | "lottery") => {
+      if (!groupId) return;
+      const student = students.find((s) => s.id === studentId);
+      if (!student) return;
+
+      const current = stateRef.current;
+      const sessionTotal = (current.bonus[studentId] ?? 0) + delta;
+      const nextBonus = { ...current.bonus, [studentId]: sessionTotal };
+
+      try {
+        await recordBonus(
+          groupId,
+          currentGroup?.name ?? groupId,
+          student,
+          delta,
+          source,
+          sessionTotal,
+        );
+        await persist(
+          {
+            ...current,
+            bonus: nextBonus,
+            live: {
+              ...current.live,
+              bonusFlash: {
+                studentId,
+                name: student.name,
+                delta,
+                sessionTotal,
+                at: new Date().toISOString(),
+              },
+            },
+          },
+          `${delta > 0 ? `+${delta}` : delta} 分 · 已同步雲端`,
+        );
+      } catch {
+        setStatus("加分同步失敗，請檢查網路後重試");
+      }
+    },
+    [groupId, currentGroup?.name, students, persist],
+  );
+
+  const updateLiveLottery = useCallback(
+    (lottery: LiveLottery) => {
+      const current = stateRef.current;
+      void persist({
+        ...current,
+        live: { ...current.live, lottery },
+      });
+    },
+    [persist],
+  );
+
   const availableCount = useMemo(() => countAvailableSeats(state), [state]);
   const seatedStudents = useMemo(() => {
     const ids = new Set(Object.values(state.assignments));
@@ -112,8 +182,7 @@ export function SeatingWorkspace() {
     if (bonusMode) {
       const studentId = state.assignments[key];
       if (!studentId) return;
-      const nextBonus = { ...state.bonus, [studentId]: (state.bonus[studentId] ?? 0) + 1 };
-      void persist({ ...state, bonus: nextBonus }, "已加分 +1");
+      void awardBonus(studentId, 1, "seat");
       return;
     }
     if (viewMode === "result") {
@@ -188,14 +257,39 @@ export function SeatingWorkspace() {
     setStatus(published ? "已公布給學生" : "已取消公布");
   };
 
-  const publicUrl =
-    typeof window !== "undefined" && groupId
-      ? `${window.location.origin}/view/seating/${groupId}`
-      : "";
+  const handleBatchSync = async () => {
+    if (!groupId || syncing) return;
+    const hasBonus = Object.values(state.bonus).some((v) => v !== 0);
+    if (!hasBonus) {
+      setStatus("本堂尚無加分紀錄");
+      return;
+    }
+    if (!window.confirm("將本堂所有加分補傳至雲端？若已即時同步過，可能產生重複紀錄。")) {
+      return;
+    }
+    setSyncing(true);
+    try {
+      const count = await syncSessionBonuses(
+        groupId,
+        currentGroup?.name ?? groupId,
+        students,
+        state.bonus,
+      );
+      setStatus(`已補傳 ${count} 筆加分至雲端`);
+    } catch {
+      setStatus("補傳失敗，請稍後再試");
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  const publicUrl = origin && groupId ? `${origin}/view/seating/${groupId}` : "";
+  const projectUrl = origin && groupId ? `${origin}/view/seating/${groupId}/project` : "";
 
   return (
-    <div className="space-y-5">
-      <div className="card p-4">
+    <div className={`space-y-5 ${classMode ? "class-mode" : ""}`}>
+      <div className={`card ${classMode ? "class-toolbar" : ""} p-4`}>
         <div className="flex flex-wrap items-center gap-3">
           <div className="toolbar-group">
             <span className="px-2 text-xs font-bold text-[var(--ink-muted)]">分組</span>
@@ -203,7 +297,9 @@ export function SeatingWorkspace() {
               id="groupSelect"
               value={groupId}
               onChange={(e) => setGroupId(e.target.value)}
-              className="select w-auto min-w-[140px] border-0 bg-transparent py-1 font-semibold"
+              className={`select w-auto min-w-[140px] border-0 bg-transparent font-semibold ${
+                classMode ? "py-2 text-base" : "py-1"
+              }`}
             >
               <option value="">請選擇</option>
               {groups.map((g) => (
@@ -215,72 +311,119 @@ export function SeatingWorkspace() {
           </div>
 
           <div className="toolbar-group">
-            <ChipButton active={studentPreview} onClick={() => setStudentPreview((v) => !v)}>
-              👁 學生預覽
-            </ChipButton>
-            <ChipButton active={absentMode} onClick={() => setAbsentMode((v) => !v)}>
-              缺勤
-            </ChipButton>
-            <ChipButton active={showScores} onClick={() => setShowScores((v) => !v)}>
-              成績
-            </ChipButton>
-            <ChipButton warn onClick={() => setLotteryOpen(true)}>
+            {!classMode ? (
+              <ChipButton active={studentPreview} onClick={() => setStudentPreview((v) => !v)}>
+                👁 學生預覽
+              </ChipButton>
+            ) : null}
+            {!classMode ? (
+              <ChipButton active={absentMode} onClick={() => setAbsentMode((v) => !v)}>
+                缺勤
+              </ChipButton>
+            ) : null}
+            {!classMode ? (
+              <ChipButton active={showScores} onClick={() => setShowScores((v) => !v)}>
+                成績
+              </ChipButton>
+            ) : null}
+            <ChipButton large={classMode} warn onClick={() => setLotteryOpen(true)}>
               🎲 抽籤
             </ChipButton>
-            <ChipButton active={bonusMode} warn onClick={() => setBonusMode((v) => !v)}>
+            <ChipButton
+              large={classMode}
+              active={bonusMode}
+              warn
+              onClick={() => setBonusMode((v) => !v)}
+            >
               ⭐ 加分
             </ChipButton>
           </div>
 
           <div className="toolbar-group">
-            <button type="button" onClick={() => handlePublish(true)} className="btn btn-success text-xs">
+            <button
+              type="button"
+              onClick={() => handlePublish(true)}
+              className={`btn btn-success ${classMode ? "text-sm" : "text-xs"}`}
+            >
               公布給學生
             </button>
-            <button type="button" onClick={() => handlePublish(false)} className="btn btn-ghost text-xs">
-              取消公布
-            </button>
+            {!classMode ? (
+              <button type="button" onClick={() => handlePublish(false)} className="btn btn-ghost text-xs">
+                取消公布
+              </button>
+            ) : null}
           </div>
+
+          {classMode ? (
+            <Link href="/teacher/seating" className="btn btn-ghost text-xs">
+              離開上課模式
+            </Link>
+          ) : (
+            <Link href="/teacher/seating?class=1" className="btn btn-primary text-xs">
+              📺 上課模式
+            </Link>
+          )}
 
           {status ? <span className="badge badge-brand">{status}</span> : null}
+          {bonusMode ? <span className="badge badge-muted">加分即時同步雲端</span> : null}
         </div>
 
-        {publicUrl ? (
-          <div className="mt-3 rounded-xl bg-[var(--brand-light)] px-4 py-2.5 text-xs text-[var(--brand-dark)]">
-            學生連結：
-            <a href={publicUrl} className="ml-1 font-semibold underline" target="_blank" rel="noreferrer">
-              {publicUrl}
+        {!classMode && (publicUrl || projectUrl) ? (
+          <div className="mt-3 space-y-2 rounded-xl bg-[var(--brand-light)] px-4 py-2.5 text-xs text-[var(--brand-dark)]">
+            <p>
+              學生連結：
+              <a href={publicUrl} className="ml-1 font-semibold underline" target="_blank" rel="noreferrer">
+                {publicUrl}
+              </a>
+            </p>
+            <p>
+              投影連結（大字版 · 同步抽籤與加分）：
+              <a href={projectUrl} className="ml-1 font-semibold underline" target="_blank" rel="noreferrer">
+                {projectUrl}
+              </a>
+            </p>
+          </div>
+        ) : null}
+
+        {classMode && projectUrl ? (
+          <p className="mt-3 text-sm text-[var(--ink-muted)]">
+            投影此連結給全班：
+            <a href={projectUrl} className="ml-1 font-semibold text-[var(--brand)] underline" target="_blank" rel="noreferrer">
+              開啟投影畫面
             </a>
-          </div>
+          </p>
         ) : null}
       </div>
 
-      <div className="card overflow-hidden">
-        <button
-          type="button"
-          onClick={() => setImportOpen((v) => !v)}
-          className="flex w-full items-center justify-between px-5 py-4 text-left hover:bg-[#f8fafc]"
-        >
-          <span>
-            <span className="section-label">Data</span>
-            <span className="mt-1 block text-sm font-bold text-[var(--ink)]">資料匯入</span>
-          </span>
-          <span className="text-sm text-[var(--ink-muted)]">{importOpen ? "收合 ▲" : "展開 ▼"}</span>
-        </button>
-        {importOpen ? (
-          <div className="space-y-4 border-t border-[var(--line)] bg-[#fafbfd] p-4">
-            <OneClickImport
-              onDone={() => {
-                listGroups().then(setGroups);
-                setReloadKey((k) => k + 1);
-              }}
-            />
-            <ImportPanel onImported={() => listGroups().then(setGroups)} />
-          </div>
-        ) : null}
-      </div>
+      {!classMode ? (
+        <div className="card overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setImportOpen((v) => !v)}
+            className="flex w-full items-center justify-between px-5 py-4 text-left hover:bg-[#f8fafc]"
+          >
+            <span>
+              <span className="section-label">Data</span>
+              <span className="mt-1 block text-sm font-bold text-[var(--ink)]">資料匯入</span>
+            </span>
+            <span className="text-sm text-[var(--ink-muted)]">{importOpen ? "收合 ▲" : "展開 ▼"}</span>
+          </button>
+          {importOpen ? (
+            <div className="space-y-4 border-t border-[var(--line)] bg-[#fafbfd] p-4">
+              <OneClickImport
+                onDone={() => {
+                  listGroups().then(setGroups);
+                  setReloadKey((k) => k + 1);
+                }}
+              />
+              <ImportPanel onImported={() => listGroups().then(setGroups)} />
+            </div>
+          ) : null}
+        </div>
+      ) : null}
 
-      <div className={`grid gap-5 ${asideOpen && !studentPreview ? "lg:grid-cols-[300px_1fr]" : "grid-cols-1"}`}>
-        {!studentPreview && asideOpen ? (
+      <div className={`grid gap-5 ${asideOpen && !studentPreview && !classMode ? "lg:grid-cols-[300px_1fr]" : "grid-cols-1"}`}>
+        {!studentPreview && asideOpen && !classMode ? (
           <aside className="card space-y-4 p-4">
             <p className="section-label">Workspace</p>
             <div className="grid grid-cols-2 gap-2 rounded-xl bg-[#f4f7fb] p-1">
@@ -408,6 +551,14 @@ export function SeatingWorkspace() {
               </button>
               <button
                 type="button"
+                onClick={handleBatchSync}
+                disabled={syncing}
+                className="btn btn-ghost w-full text-xs disabled:opacity-50"
+              >
+                {syncing ? "上傳中…" : "補傳本堂加分至雲端"}
+              </button>
+              <button
+                type="button"
                 onClick={() => void persist({ ...state, absent: [] })}
                 className="btn btn-ghost w-full text-xs"
               >
@@ -418,7 +569,7 @@ export function SeatingWorkspace() {
         ) : null}
 
         <main>
-          {!studentPreview ? (
+          {!studentPreview && !classMode ? (
             <button
               type="button"
               onClick={() => setAsideOpen((v) => !v)}
@@ -430,16 +581,22 @@ export function SeatingWorkspace() {
           <SeatingBoard
             state={state}
             students={students}
-            mode={viewMode}
+            mode="result"
             studentView={studentPreview}
             absentMode={absentMode && !studentPreview}
             bonusMode={bonusMode && !studentPreview}
             showScores={showScores}
+            projection={classMode}
             selectedSeat={selectedSeat}
             onSeatClick={handleSeatClick}
           />
-          {viewMode === "result" && !studentPreview ? (
+          {viewMode === "result" && !studentPreview && !classMode ? (
             <p className="mt-3 text-xs text-[var(--ink-muted)]">提示：點選兩個座位可對調學生位置。</p>
+          ) : null}
+          {classMode && bonusMode ? (
+            <p className="mt-3 text-center text-sm text-[var(--ink-muted)]">
+              點選座位即可加分，全班投影畫面會即時顯示
+            </p>
           ) : null}
         </main>
       </div>
@@ -447,14 +604,10 @@ export function SeatingWorkspace() {
       <LotteryModal
         open={lotteryOpen}
         candidates={seatedStudents.length ? seatedStudents : students}
+        classMode={classMode}
         onClose={() => setLotteryOpen(false)}
-        onAwardBonus={(studentId, delta) => {
-          const next = {
-            ...state.bonus,
-            [studentId]: (state.bonus[studentId] ?? 0) + delta,
-          };
-          void persist({ ...state, bonus: next }, `已調整 ${delta > 0 ? "+" : ""}${delta} 分`);
-        }}
+        onLiveChange={updateLiveLottery}
+        onAwardBonus={(studentId, delta) => void awardBonus(studentId, delta, "lottery")}
       />
     </div>
   );
