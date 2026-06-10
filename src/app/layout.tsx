@@ -3,7 +3,6 @@ import { Geist_Mono } from "next/font/google";
 import { Noto_Sans_TC } from "next/font/google";
 import { Suspense } from "react";
 import { AuthProvider } from "@/contexts/AuthContext";
-import { PresentationProvider } from "@/contexts/PresentationContext";
 import { ConditionalAppShell } from "@/components/layout/ConditionalAppShell";
 import "./globals.css";
 
@@ -32,11 +31,9 @@ export default function RootLayout({
     <html lang="zh-Hant" className={`${notoSansTc.variable} ${geistMono.variable} h-full`}>
       <body className="app-shell antialiased">
         <AuthProvider>
-          <PresentationProvider>
-            <Suspense fallback={<main className="app-main">{children}</main>}>
-              <ConditionalAppShell>{children}</ConditionalAppShell>
-            </Suspense>
-          </PresentationProvider>
+          <Suspense fallback={<main className="app-main">{children}</main>}>
+            <ConditionalAppShell>{children}</ConditionalAppShell>
+          </Suspense>
         </AuthProvider>
       </body>
     </html>

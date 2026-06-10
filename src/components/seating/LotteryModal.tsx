@@ -4,20 +4,14 @@ import { useEffect, useRef, useState } from "react";
 import type { LiveLottery, LotteryPhase, Student } from "@/types/seating";
 
 interface LotteryPanelProps {
-  open: boolean;
   candidates: Student[];
-  compact?: boolean;
-  onClose: () => void;
   onAwardBonus: (studentId: string, delta: number) => void;
   onLiveChange?: (lottery: LiveLottery) => void;
   onHighlightChange?: (studentId: string | null, phase: LotteryPhase | null) => void;
 }
 
 export function LotteryModal({
-  open,
   candidates,
-  compact = false,
-  onClose,
   onAwardBonus,
   onLiveChange,
   onHighlightChange,
@@ -29,35 +23,22 @@ export function LotteryModal({
 
   const pushLive = (phase: LiveLottery["phase"], studentId?: string) => {
     onLiveChange?.({
-      open: true,
+      open: phase !== "idle",
       phase,
       studentId,
       updatedAt: new Date().toISOString(),
     });
-    onHighlightChange?.(studentId ?? null, phase);
+    onHighlightChange?.(studentId ?? null, phase === "idle" ? null : phase);
   };
-
-  useEffect(() => {
-    if (!open) {
-      setCurrent(null);
-      setSpinning(false);
-      setRevealed(false);
-      if (timerRef.current) clearInterval(timerRef.current);
-      onLiveChange?.({ open: false, phase: "idle", updatedAt: new Date().toISOString() });
-      onHighlightChange?.(null, null);
-    } else {
-      pushLive("idle");
-    }
-  }, [open]);
 
   useEffect(
     () => () => {
       if (timerRef.current) clearInterval(timerRef.current);
+      onLiveChange?.({ open: false, phase: "idle", updatedAt: new Date().toISOString() });
+      onHighlightChange?.(null, null);
     },
     [],
   );
-
-  if (!open) return null;
 
   const startDraw = () => {
     if (candidates.length === 0) return;
@@ -77,69 +58,67 @@ export function LotteryModal({
         setRevealed(true);
         pushLive("revealed", pick.id);
       }
-    }, compact ? 70 : 80);
+    }, 70);
   };
 
-  const handleClose = () => {
-    onLiveChange?.({ open: false, phase: "idle", updatedAt: new Date().toISOString() });
-    onHighlightChange?.(null, null);
-    onClose();
+  const resetDraw = () => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    setCurrent(null);
+    setSpinning(false);
+    setRevealed(false);
+    pushLive("idle");
   };
 
   return (
-    <div className={`lottery-panel ${compact ? "lottery-panel-compact" : ""}`}>
-      <div className="lottery-panel-inner">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <span className="text-sm font-bold text-[var(--ink)]">🎲 課堂抽籤</span>
-          <button
-            type="button"
-            onClick={handleClose}
-            className="rounded-lg px-2 py-1 text-xs text-[var(--ink-muted)] hover:bg-[#f4f7fb]"
-          >
-            關閉
-          </button>
-        </div>
+    <div className="lottery-panel lottery-panel-inline">
+      <div className="lottery-panel-inner lottery-panel-row">
+        <span className="lottery-panel-label">🎲 抽籤</span>
 
         {current ? (
-          <p className="mt-2 text-center text-xs text-[var(--ink-muted)]">
-            {spinning ? "抽籤中：" : "中籤："}
-            <strong className="text-[var(--brand-dark)]">{current.name}</strong>
-            {revealed ? <span className="ml-1 text-amber-600">（已框選座位）</span> : null}
-          </p>
+          <span className="lottery-panel-status">
+            {spinning ? "抽籤中" : "中籤"}：
+            <strong>{current.name}</strong>
+          </span>
         ) : (
-          <p className="mt-2 text-center text-xs text-[var(--ink-muted)]">按下開始，座位表會即時框選學生</p>
+          <span className="lottery-panel-status text-[var(--ink-muted)]">座位表會框選學生</span>
         )}
 
-        <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+        <div className="lottery-panel-actions">
           <button
             type="button"
             onClick={startDraw}
             disabled={spinning || candidates.length === 0}
-            className="btn btn-primary disabled:opacity-50"
+            className="btn btn-primary btn-sm disabled:opacity-50"
           >
-            {spinning ? "抽籤中…" : "開始抽籤"}
+            {spinning ? "抽籤中…" : "開始"}
           </button>
 
           {revealed && current ? (
             <>
-              <button type="button" onClick={() => onAwardBonus(current.id, -1)} className="btn btn-ghost font-bold">
+              <button type="button" onClick={() => onAwardBonus(current.id, -1)} className="btn btn-ghost btn-sm font-bold">
                 −1
               </button>
               <button
                 type="button"
                 onClick={() => onAwardBonus(current.id, 1)}
-                className="btn bg-[var(--accent)] font-bold text-white"
+                className="btn btn-sm bg-[var(--accent)] font-bold text-white"
               >
                 +1
               </button>
               <button
                 type="button"
                 onClick={() => onAwardBonus(current.id, 2)}
-                className="btn bg-[var(--accent)] font-bold text-white"
+                className="btn btn-sm bg-[var(--accent)] font-bold text-white"
               >
                 +2
               </button>
             </>
+          ) : null}
+
+          {current ? (
+            <button type="button" onClick={resetDraw} className="btn btn-ghost btn-sm">
+              重設
+            </button>
           ) : null}
         </div>
       </div>

@@ -12,6 +12,7 @@ interface SeatingBoardProps {
   bonusMode?: boolean;
   showScores?: boolean;
   projection?: boolean;
+  classroomFit?: boolean;
   selectedSeat?: string | null;
   highlightStudentId?: string | null;
   lotteryPhase?: LotteryPhase | null;
@@ -47,6 +48,7 @@ export function SeatingBoard({
   bonusMode = false,
   showScores = false,
   projection = false,
+  classroomFit = false,
   selectedSeat,
   highlightStudentId,
   lotteryPhase,
@@ -55,12 +57,13 @@ export function SeatingBoard({
 }: SeatingBoardProps) {
   const map = studentMap(students);
   const { rows, cols } = state;
-  const minSeat = projection ? 88 : 58;
+  const minSeat = classroomFit ? 52 : projection ? 88 : 58;
+  const fitClass = classroomFit ? "classroom-board" : projection ? "projection-board" : "card p-5 sm:p-6";
 
   return (
-    <div className={`seating-board overflow-auto ${projection ? "projection-board" : "card p-5 sm:p-6"}`}>
+    <div className={`seating-board ${fitClass}`}>
       <div
-        className={`mx-auto grid ${projection ? "gap-3" : "gap-2"}`}
+        className={`mx-auto grid ${classroomFit ? "gap-1.5 classroom-grid" : projection ? "gap-3" : "gap-2"}`}
         style={{ gridTemplateColumns: `repeat(${cols}, minmax(${minSeat}px, 1fr))` }}
       >
         {Array.from({ length: rows }).map((_, r) =>
@@ -81,7 +84,7 @@ export function SeatingBoard({
                 disabled={studentView || state.blocked.includes(key)}
                 onClick={() => onSeatClick?.(key)}
                 className={`${seatVisualClass(key, state, Boolean(student), mode, studentView)} ${
-                  projection ? "seat-tile-projection" : ""
+                  classroomFit ? "seat-tile-classroom" : projection ? "seat-tile-projection" : ""
                 } ${interactive ? "seat-tile-interactive" : ""} ${isSelected ? "seat-selected" : ""} ${
                   isLotteryTarget && lotteryPhase === "spinning" ? "seat-lottery-spin" : ""
                 } ${isLotteryTarget && lotteryPhase === "revealed" ? "seat-lottery-winner" : ""} ${
@@ -95,7 +98,7 @@ export function SeatingBoard({
                   <>
                     <span
                       className={`max-w-full truncate px-1 font-bold ${
-                        projection ? "text-base sm:text-lg" : "text-xs"
+                        classroomFit ? "text-[11px] sm:text-xs" : projection ? "text-base sm:text-lg" : "text-xs"
                       }`}
                     >
                       {student.name}
@@ -144,7 +147,15 @@ export function SeatingBoard({
         )}
       </div>
       {lotteryPanel}
-      <div className={projection ? "podium podium-bottom podium-projection" : "podium podium-bottom"}>
+      <div
+        className={
+          classroomFit
+            ? "podium podium-bottom podium-classroom"
+            : projection
+              ? "podium podium-bottom podium-projection"
+              : "podium podium-bottom"
+        }
+      >
         講台
       </div>
     </div>

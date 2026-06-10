@@ -1,15 +1,16 @@
 "use client";
 
-import { usePresentation } from "@/contexts/PresentationContext";
+import { usePathname } from "next/navigation";
 import { AppNav } from "@/components/layout/AppNav";
 
 export function ConditionalAppShell({ children }: { children: React.ReactNode }) {
-  const { presentation } = usePresentation();
+  const pathname = usePathname();
+  const isClassroom = pathname.startsWith("/teacher/seating");
 
   return (
     <>
-      {!presentation ? <AppNav /> : null}
-      <main className={presentation ? "immersive-main" : "app-main"}>{children}</main>
+      <AppNav />
+      <main className={isClassroom ? "classroom-main" : "app-main"}>{children}</main>
     </>
   );
 }

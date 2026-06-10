@@ -107,7 +107,7 @@ export function StudentSeatingView({
             highlightStudentId={lotteryActive ? lottery?.studentId : null}
             lotteryPhase={lotteryActive ? lottery?.phase : null}
           />
-          <BonusFlashBanner flash={state.live?.bonusFlash} projection={projection} />
+          <BonusFlashBanner flash={state.live?.bonusFlash} inline />
         </div>
       ) : (
         <div className="rounded-2xl border border-[#f0d49a] bg-[var(--accent-soft)] p-6 text-sm text-[#8a5a00]">

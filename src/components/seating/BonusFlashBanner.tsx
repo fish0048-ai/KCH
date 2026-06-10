@@ -5,10 +5,10 @@ import type { LiveBonusFlash } from "@/types/seating";
 
 interface BonusFlashBannerProps {
   flash?: LiveBonusFlash | null;
-  projection?: boolean;
+  inline?: boolean;
 }
 
-export function BonusFlashBanner({ flash, projection = false }: BonusFlashBannerProps) {
+export function BonusFlashBanner({ flash, inline = false }: BonusFlashBannerProps) {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
@@ -27,17 +27,17 @@ export function BonusFlashBanner({ flash, projection = false }: BonusFlashBanner
 
   return (
     <div
-      className={`bonus-flash ${projection ? "bonus-flash-projection" : ""} ${
+      className={`${inline ? "bonus-flash-inline" : "bonus-flash"} ${
         positive ? "bonus-flash-positive" : "bonus-flash-negative"
       }`}
       role="status"
     >
       <span className="bonus-flash-icon">{positive ? "⭐" : "−"}</span>
       <span className="bonus-flash-name">{flash.name}</span>
-      <span className="bonus-flash-delta">
-        {positive ? `+${flash.delta}` : flash.delta}
+      <span className="bonus-flash-delta">{positive ? `+${flash.delta}` : flash.delta}</span>
+      <span className="bonus-flash-total">
+        本堂 {flash.sessionTotal > 0 ? `+${flash.sessionTotal}` : flash.sessionTotal}
       </span>
-      <span className="bonus-flash-total">本堂累計 {flash.sessionTotal > 0 ? `+${flash.sessionTotal}` : flash.sessionTotal}</span>
     </div>
   );
 }
