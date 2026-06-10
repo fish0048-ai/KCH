@@ -71,8 +71,8 @@ export function LotteryModal({
 
   return (
     <div className="lottery-panel lottery-panel-inline">
-      <div className="lottery-panel-inner lottery-panel-row">
-        <span className="lottery-panel-label">🎲 抽籤</span>
+      <div className="lottery-panel-row">
+        <span className="lottery-panel-label">🎲 課堂抽籤</span>
 
         {current ? (
           <span className="lottery-panel-status">
@@ -88,9 +88,9 @@ export function LotteryModal({
             type="button"
             onClick={startDraw}
             disabled={spinning || candidates.length === 0}
-            className="btn btn-primary btn-sm disabled:opacity-50"
+            className="btn btn-primary disabled:opacity-50"
           >
-            {spinning ? "抽籤中…" : "開始"}
+            {spinning ? "抽籤中…" : "開始抽籤"}
           </button>
 
           {revealed && current ? (

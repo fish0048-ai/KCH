@@ -166,10 +166,7 @@ export function SeatingBoard({
       {classroomFit ? (
         <>
           <div className="classroom-grid-area">{grid}</div>
-          <div className="classroom-board-footer">
-            {lotteryPanel}
-            {podium}
-          </div>
+          <div className="classroom-board-footer">{podium}</div>
         </>
       ) : (
         <>

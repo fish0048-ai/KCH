@@ -72,6 +72,7 @@ export function SeatingWorkspace() {
   const [lotteryPhase, setLotteryPhase] = useState<LotteryPhase | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
+  const [asideOpen, setAsideOpen] = useState(false);
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
   const stateRef = useRef(state);
@@ -313,6 +314,13 @@ export function SeatingWorkspace() {
           </div>
 
           <div className="toolbar-group classroom-toolbar">
+            <button
+              type="button"
+              onClick={() => setAsideOpen((v) => !v)}
+              className={`btn btn-chip ${asideOpen ? "btn-chip-active" : ""}`}
+            >
+              {asideOpen ? "◀ 收合編排" : "▶ 編排"}
+            </button>
             <ChipButton active={bonusMode} warn onClick={() => setBonusMode((v) => !v)}>
               ⭐ 加分
             </ChipButton>
@@ -331,6 +339,8 @@ export function SeatingWorkspace() {
           </div>
         </div>
 
+        <div className="classroom-lottery-bar">{lotteryPanel}</div>
+
         <div className="classroom-header-meta">
           <BonusFlashBanner flash={state.live?.bonusFlash} inline />
           {status ? <span className="badge badge-brand">{status}</span> : null}
@@ -343,7 +353,8 @@ export function SeatingWorkspace() {
         </div>
       </header>
 
-      <div className="classroom-body">
+      <div className={`classroom-body ${asideOpen ? "classroom-body-aside-open" : ""}`}>
+        {asideOpen ? (
         <aside className="classroom-aside card">
           <p className="section-label">編排</p>
           <div className="grid grid-cols-2 gap-1.5 rounded-xl bg-[#f4f7fb] p-1">
@@ -433,6 +444,7 @@ export function SeatingWorkspace() {
             </button>
           </div>
         </aside>
+        ) : null}
 
         <div className="classroom-board-wrap">
           <SeatingBoard
@@ -446,7 +458,6 @@ export function SeatingWorkspace() {
             classroomFit
             highlightStudentId={lotteryHighlightId}
             lotteryPhase={lotteryPhase}
-            lotteryPanel={lotteryPanel}
             selectedSeat={selectedSeat}
             onSeatClick={handleSeatClick}
           />
