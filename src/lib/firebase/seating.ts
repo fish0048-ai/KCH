@@ -54,6 +54,10 @@ export async function listStudents(groupId: string): Promise<Student[]> {
       id: d.id,
       studentNo: String(data.studentNo ?? ""),
       name: String(data.name ?? ""),
+      classNo: data.classNo ? String(data.classNo) : undefined,
+      scienceGroup: data.scienceGroup ? String(data.scienceGroup) : undefined,
+      bonusPoints:
+        typeof data.bonusPoints === "number" ? data.bonusPoints : undefined,
       gender: data.gender ? String(data.gender) : undefined,
       segmentScore:
         typeof data.segmentScore === "number" ? data.segmentScore : null,
@@ -73,6 +77,10 @@ export function subscribeStudents(
           id: d.id,
           studentNo: String(data.studentNo ?? ""),
           name: String(data.name ?? ""),
+          classNo: data.classNo ? String(data.classNo) : undefined,
+          scienceGroup: data.scienceGroup ? String(data.scienceGroup) : undefined,
+          bonusPoints:
+            typeof data.bonusPoints === "number" ? data.bonusPoints : undefined,
           gender: data.gender ? String(data.gender) : undefined,
           segmentScore:
             typeof data.segmentScore === "number" ? data.segmentScore : null,
@@ -144,10 +152,16 @@ export async function importStudents(
     { merge: true },
   );
   students.forEach((student, index) => {
-    const id = student.studentNo || `student-${index + 1}`;
+    const id =
+      student.classNo && student.studentNo
+        ? `${student.classNo}-${student.studentNo}`
+        : student.studentNo || `student-${index + 1}`;
     batch.set(doc(getFirestoreDb(), "groups", groupId, "students", id), {
       studentNo: student.studentNo,
       name: student.name,
+      classNo: student.classNo ?? null,
+      scienceGroup: student.scienceGroup ?? null,
+      bonusPoints: student.bonusPoints ?? null,
       gender: student.gender ?? null,
       segmentScore: student.segmentScore ?? null,
     });

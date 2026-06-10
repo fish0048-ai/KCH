@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { SeatingBoard } from "@/components/seating/SeatingBoard";
 import { LotteryModal } from "@/components/seating/LotteryModal";
 import { ImportPanel } from "@/components/seating/ImportPanel";
+import { OneClickImport } from "@/components/seating/OneClickImport";
 import {
   generateSeating,
   swapAssignments,
@@ -284,6 +285,12 @@ export function SeatingWorkspace() {
         </div>
       ) : null}
 
+      <OneClickImport
+        onDone={() => {
+          listGroups().then(setGroups);
+          setReloadKey((k) => k + 1);
+        }}
+      />
       <ImportPanel onImported={() => listGroups().then(setGroups)} />
 
       <div

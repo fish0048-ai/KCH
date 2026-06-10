@@ -2,6 +2,9 @@ export interface Student {
   id: string;
   studentNo: string;
   name: string;
+  classNo?: string;
+  scienceGroup?: string;
+  bonusPoints?: number;
   gender?: string;
   segmentScore?: number | null;
 }

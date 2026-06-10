@@ -5,6 +5,7 @@ import { groupCsvRows, parseStudentCsv } from "@/lib/import/csv";
 import { importStudents } from "@/lib/firebase/seating";
 
 export function ImportPanel({ onImported }: { onImported: () => void }) {
+  const [groupName, setGroupName] = useState("801A名單");
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -13,7 +14,7 @@ export function ImportPanel({ onImported }: { onImported: () => void }) {
     setBusy(true);
     setMessage(null);
     try {
-      const rows = parseStudentCsv(text);
+      const rows = parseStudentCsv(text, { defaultGroupName: groupName });
       const grouped = groupCsvRows(rows);
       for (const [groupId, payload] of grouped.entries()) {
         await importStudents(groupId, payload.groupName, payload.students);
@@ -31,13 +32,22 @@ export function ImportPanel({ onImported }: { onImported: () => void }) {
     <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
       <h3 className="text-sm font-bold text-slate-900">從 CSV 匯入學生資料</h3>
       <p className="mt-1 text-xs text-slate-500">
-        可從 Google 試算表匯出 CSV。必要欄位：班級/分組、姓名；建議包含學號、段考成績。
+        對應試算表「801A名單 / 804A名單 / 806B名單」分頁。欄位：自然分組、班級、座號、姓名、加分。
       </p>
+      <label className="mt-3 block text-xs font-semibold text-slate-600">
+        分組名稱（試算表分頁名）
+        <input
+          value={groupName}
+          onChange={(e) => setGroupName(e.target.value)}
+          className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+          placeholder="801A名單"
+        />
+      </label>
       <textarea
         value={text}
         onChange={(e) => setText(e.target.value)}
         rows={6}
-        placeholder={`班級,學號,姓名,段考成績\n8A,1,王小明,85\n8A,2,李小華,92`}
+        placeholder={`自然分組,班級,座號,姓名,加分\n801理A,801,2,蔡昀庭,2\n801理A,801,3,王唯宇,2`}
         className="mt-3 w-full rounded-lg border border-slate-200 p-3 font-mono text-xs"
       />
       <div className="mt-3 flex items-center gap-3">

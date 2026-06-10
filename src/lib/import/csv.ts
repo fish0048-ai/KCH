@@ -5,6 +5,9 @@ export interface CsvImportRow {
   groupName: string;
   studentNo: string;
   name: string;
+  classNo?: string;
+  scienceGroup?: string;
+  bonusPoints?: number;
   gender?: string;
   segmentScore?: number | null;
 }
@@ -30,44 +33,92 @@ function parseCsvLine(line: string): string[] {
   return result;
 }
 
-export function parseStudentCsv(text: string): CsvImportRow[] {
+function normalizeHeader(value: string): string {
+  return value.trim().toLowerCase().replace(/\s+/g, "");
+}
+
+function findColumnIndex(headers: string[], aliases: string[]): number {
+  const normalized = headers.map(normalizeHeader);
+  return normalized.findIndex((h) => aliases.some((a) => normalizeHeader(a) === h));
+}
+
+function slugifyGroupId(name: string): string {
+  return name.trim().toLowerCase();
+}
+
+export interface ParseStudentCsvOptions {
+  /** 對應試算表分頁名，例如 801A名單 */
+  defaultGroupName?: string;
+}
+
+export function parseStudentCsv(
+  text: string,
+  options: ParseStudentCsvOptions = {},
+): CsvImportRow[] {
   const lines = text
     .split(/\r?\n/)
     .map((l) => l.trim())
     .filter(Boolean);
   if (lines.length < 2) return [];
 
-  const header = parseCsvLine(lines[0]).map((h) => h.toLowerCase());
+  const rawHeader = parseCsvLine(lines[0]);
   const idx = {
-    groupId: header.findIndex((h) => ["groupid", "分組id", "班級id"].includes(h)),
-    groupName: header.findIndex((h) => ["groupname", "分組", "班級", "組別"].includes(h)),
-    studentNo: header.findIndex((h) => ["studentno", "學號", "座號"].includes(h)),
-    name: header.findIndex((h) => ["name", "姓名"].includes(h)),
-    gender: header.findIndex((h) => ["gender", "性別"].includes(h)),
-    segmentScore: header.findIndex((h) =>
-      ["segmentscore", "段考成績", "成績"].includes(h),
-    ),
+    groupId: findColumnIndex(rawHeader, ["groupid", "分組id", "班級id"]),
+    groupName: findColumnIndex(rawHeader, [
+      "groupname",
+      "分組名稱",
+      "分組",
+      "組別",
+      "名單",
+    ]),
+    scienceGroup: findColumnIndex(rawHeader, ["自然分組", "sciencegroup"]),
+    classNo: findColumnIndex(rawHeader, ["班級", "class", "classno"]),
+    studentNo: findColumnIndex(rawHeader, ["studentno", "學號", "座號"]),
+    name: findColumnIndex(rawHeader, ["name", "姓名"]),
+    bonus: findColumnIndex(rawHeader, ["加分", "bonus"]),
+    gender: findColumnIndex(rawHeader, ["gender", "性別"]),
+    segmentScore: findColumnIndex(rawHeader, [
+      "segmentscore",
+      "段考成績",
+      "平時成績",
+      "成績",
+    ]),
   };
 
-  if (idx.groupName < 0 || idx.name < 0) {
-    throw new Error("CSV 需包含「班級/分組」與「姓名」欄位");
+  if (idx.name < 0) {
+    throw new Error("CSV 需包含「姓名」欄位");
+  }
+
+  const hasExplicitGroup = idx.groupName >= 0;
+  const fallbackGroupName = options.defaultGroupName?.trim();
+  if (!hasExplicitGroup && !fallbackGroupName) {
+    throw new Error("請在匯入區塊填寫分組名稱（例如 801A名單），或 CSV 包含分組欄位");
   }
 
   const rows: CsvImportRow[] = [];
   for (let i = 1; i < lines.length; i++) {
     const cols = parseCsvLine(lines[i]);
-    const groupName = cols[idx.groupName] ?? "";
     const name = cols[idx.name] ?? "";
-    if (!groupName || !name) continue;
+    if (!name) continue;
+
+    const groupName = hasExplicitGroup
+      ? cols[idx.groupName] ?? ""
+      : fallbackGroupName!;
+    if (!groupName) continue;
+
     const groupId =
-      (idx.groupId >= 0 ? cols[idx.groupId] : "") ||
-      groupName.replace(/\s+/g, "-").toLowerCase();
+      (idx.groupId >= 0 ? cols[idx.groupId] : "") || slugifyGroupId(groupName);
+    const bonusRaw = idx.bonus >= 0 ? cols[idx.bonus] : "";
     const scoreRaw = idx.segmentScore >= 0 ? cols[idx.segmentScore] : "";
+
     rows.push({
       groupId,
       groupName,
       studentNo: idx.studentNo >= 0 ? cols[idx.studentNo] ?? "" : "",
       name,
+      classNo: idx.classNo >= 0 ? cols[idx.classNo] : undefined,
+      scienceGroup: idx.scienceGroup >= 0 ? cols[idx.scienceGroup] : undefined,
+      bonusPoints: bonusRaw ? Number(bonusRaw) : undefined,
       gender: idx.gender >= 0 ? cols[idx.gender] : undefined,
       segmentScore: scoreRaw ? Number(scoreRaw) : null,
     });
@@ -85,6 +136,9 @@ export function groupCsvRows(rows: CsvImportRow[]): Map<
     bucket.students.push({
       studentNo: row.studentNo,
       name: row.name,
+      classNo: row.classNo,
+      scienceGroup: row.scienceGroup,
+      bonusPoints: row.bonusPoints,
       gender: row.gender,
       segmentScore: row.segmentScore ?? null,
     });
