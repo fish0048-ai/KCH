@@ -37,8 +37,10 @@ body {
 
 .app-shell {
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 .app-main {
@@ -55,7 +57,11 @@ body {
   max-width: none;
   margin: 0;
   padding: 0.5rem 0.5rem 0.75rem;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 
 @media (min-width: 768px) {
@@ -66,9 +72,9 @@ body {
 
 .classroom-shell {
   display: flex;
+  flex: 1;
   flex-direction: column;
-  height: calc(100vh - 3.75rem);
-  min-height: 480px;
+  min-height: 0;
   gap: 0.45rem;
 }
 
@@ -152,7 +158,8 @@ body {
 }
 
 .classroom-board-wrap {
-  min-height: 0;
+  flex: 1;
+  min-height: 280px;
   min-width: 0;
   display: flex;
   flex-direction: column;
@@ -163,7 +170,7 @@ body {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow: visible;
   background: rgba(255, 255, 255, 0.92);
   border: 1px solid var(--line);
   border-radius: var(--radius);
@@ -171,10 +178,26 @@ body {
   padding: 0.5rem 0.45rem 0.35rem;
 }
 
-.classroom-board .classroom-grid {
+.classroom-grid-area {
   flex: 1;
   min-height: 0;
-  align-content: center;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 0.15rem;
+}
+
+.classroom-board-footer {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding-top: 0.2rem;
+  border-top: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.96);
+}
+
+.classroom-board .classroom-grid {
+  align-content: start;
 }
 
 .seat-tile-classroom {
@@ -237,7 +260,7 @@ body {
 }
 
 .lottery-panel-inline {
-  margin: 0.35rem auto 0;
+  margin: 0;
   width: 100%;
 }
 
@@ -493,6 +516,7 @@ body {
   border-radius: 12px;
   border: 1px solid transparent;
   text-align: center;
+  overflow: visible;
   transition: transform 0.12s ease, box-shadow 0.12s ease;
 }
 

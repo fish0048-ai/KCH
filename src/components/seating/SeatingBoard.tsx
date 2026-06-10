@@ -60,14 +60,13 @@ export function SeatingBoard({
   const minSeat = classroomFit ? 52 : projection ? 88 : 58;
   const fitClass = classroomFit ? "classroom-board" : projection ? "projection-board" : "card p-5 sm:p-6";
 
-  return (
-    <div className={`seating-board ${fitClass}`}>
-      <div
-        className={`mx-auto grid ${classroomFit ? "gap-1.5 classroom-grid" : projection ? "gap-3" : "gap-2"}`}
-        style={{ gridTemplateColumns: `repeat(${cols}, minmax(${minSeat}px, 1fr))` }}
-      >
-        {Array.from({ length: rows }).map((_, r) =>
-          Array.from({ length: cols }).map((__, c) => {
+  const grid = (
+    <div
+      className={`mx-auto grid ${classroomFit ? "gap-1.5 classroom-grid" : projection ? "gap-3" : "gap-2"}`}
+      style={{ gridTemplateColumns: `repeat(${cols}, minmax(${minSeat}px, 1fr))` }}
+    >
+      {Array.from({ length: rows }).map((_, r) =>
+        Array.from({ length: cols }).map((__, c) => {
             const key = coordKey(r, c);
             const studentId = resolveSeatStudentId(state, key, mode);
             const student = studentId ? map.get(studentId) : undefined;
@@ -143,21 +142,42 @@ export function SeatingBoard({
                 ) : null}
               </button>
             );
-          }),
-        )}
-      </div>
-      {lotteryPanel}
-      <div
-        className={
-          classroomFit
-            ? "podium podium-bottom podium-classroom"
-            : projection
-              ? "podium podium-bottom podium-projection"
-              : "podium podium-bottom"
-        }
-      >
-        講台
-      </div>
+        }),
+      )}
+    </div>
+  );
+
+  const podium = (
+    <div
+      className={
+        classroomFit
+          ? "podium podium-bottom podium-classroom"
+          : projection
+            ? "podium podium-bottom podium-projection"
+            : "podium podium-bottom"
+      }
+    >
+      講台
+    </div>
+  );
+
+  return (
+    <div className={`seating-board ${fitClass}`}>
+      {classroomFit ? (
+        <>
+          <div className="classroom-grid-area">{grid}</div>
+          <div className="classroom-board-footer">
+            {lotteryPanel}
+            {podium}
+          </div>
+        </>
+      ) : (
+        <>
+          {grid}
+          {lotteryPanel}
+          {podium}
+        </>
+      )}
     </div>
   );
 }
