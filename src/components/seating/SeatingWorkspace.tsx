@@ -29,6 +29,7 @@ import type {
   FixSubMode,
   Group,
   LiveLottery,
+  LotteryPhase,
   SeatingState,
   Student,
   ViewMode,
@@ -76,6 +77,8 @@ export function SeatingWorkspace() {
   const [showScores, setShowScores] = useState(false);
   const [selectedSeat, setSelectedSeat] = useState<string | null>(null);
   const [lotteryOpen, setLotteryOpen] = useState(false);
+  const [lotteryHighlightId, setLotteryHighlightId] = useState<string | null>(null);
+  const [lotteryPhase, setLotteryPhase] = useState<LotteryPhase | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [asideOpen, setAsideOpen] = useState(true);
@@ -306,6 +309,21 @@ export function SeatingWorkspace() {
   const origin = typeof window !== "undefined" ? window.location.origin : "";
   const publicUrl = origin && groupId ? `${origin}/view/seating/${groupId}` : "";
 
+  const lotteryPanel = lotteryOpen ? (
+    <LotteryModal
+      open={lotteryOpen}
+      candidates={seatedStudents.length ? seatedStudents : students}
+      compact={presentation}
+      onClose={() => setLotteryOpen(false)}
+      onLiveChange={updateLiveLottery}
+      onHighlightChange={(studentId, phase) => {
+        setLotteryHighlightId(studentId);
+        setLotteryPhase(phase);
+      }}
+      onAwardBonus={(studentId, delta) => void awardBonus(studentId, delta, "lottery")}
+    />
+  ) : null;
+
   const teacherControls = (
     <>
       <div className="toolbar-group">
@@ -393,6 +411,9 @@ export function SeatingWorkspace() {
               bonusMode={bonusMode}
               projection
               selectedSeat={selectedSeat}
+              highlightStudentId={lotteryHighlightId}
+              lotteryPhase={lotteryPhase}
+              lotteryPanel={lotteryPanel}
               onSeatClick={handleSeatClick}
             />
             <BonusFlashBanner flash={state.live?.bonusFlash} projection />
@@ -624,6 +645,9 @@ export function SeatingWorkspace() {
                 bonusMode={bonusMode && !studentPreview}
                 showScores={showScores}
                 selectedSeat={selectedSeat}
+                highlightStudentId={lotteryHighlightId}
+                lotteryPhase={lotteryPhase}
+                lotteryPanel={lotteryPanel}
                 onSeatClick={handleSeatClick}
               />
               {viewMode === "result" && !studentPreview ? (
@@ -634,14 +658,6 @@ export function SeatingWorkspace() {
         </>
       )}
 
-      <LotteryModal
-        open={lotteryOpen}
-        candidates={seatedStudents.length ? seatedStudents : students}
-        classMode={presentation}
-        onClose={() => setLotteryOpen(false)}
-        onLiveChange={updateLiveLottery}
-        onAwardBonus={(studentId, delta) => void awardBonus(studentId, delta, "lottery")}
-      />
     </div>
   );
 }

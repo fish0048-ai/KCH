@@ -1,6 +1,6 @@
 "use client";
 
-import { coordKey, type SeatingState, type Student } from "@/types/seating";
+import { coordKey, type LotteryPhase, type SeatingState, type Student } from "@/types/seating";
 import { resolveSeatStudentId, studentMap } from "@/lib/seating/logic";
 
 interface SeatingBoardProps {
@@ -13,6 +13,9 @@ interface SeatingBoardProps {
   showScores?: boolean;
   projection?: boolean;
   selectedSeat?: string | null;
+  highlightStudentId?: string | null;
+  lotteryPhase?: LotteryPhase | null;
+  lotteryPanel?: React.ReactNode;
   onSeatClick?: (key: string) => void;
 }
 
@@ -45,6 +48,9 @@ export function SeatingBoard({
   showScores = false,
   projection = false,
   selectedSeat,
+  highlightStudentId,
+  lotteryPhase,
+  lotteryPanel,
   onSeatClick,
 }: SeatingBoardProps) {
   const map = studentMap(students);
@@ -52,8 +58,7 @@ export function SeatingBoard({
   const minSeat = projection ? 88 : 58;
 
   return (
-    <div className={`overflow-auto ${projection ? "projection-board" : "card p-5 sm:p-6"}`}>
-      <div className={projection ? "podium podium-projection" : "podium"}>講台</div>
+    <div className={`seating-board overflow-auto ${projection ? "projection-board" : "card p-5 sm:p-6"}`}>
       <div
         className={`mx-auto grid ${projection ? "gap-3" : "gap-2"}`}
         style={{ gridTemplateColumns: `repeat(${cols}, minmax(${minSeat}px, 1fr))` }}
@@ -65,6 +70,8 @@ export function SeatingBoard({
             const student = studentId ? map.get(studentId) : undefined;
             const bonus = studentId ? state.bonus[studentId] ?? 0 : 0;
             const isSelected = selectedSeat === key;
+            const isLotteryTarget =
+              Boolean(highlightStudentId && studentId === highlightStudentId && lotteryPhase);
             const interactive = !studentView && !state.blocked.includes(key);
 
             return (
@@ -76,6 +83,8 @@ export function SeatingBoard({
                 className={`${seatVisualClass(key, state, Boolean(student), mode, studentView)} ${
                   projection ? "seat-tile-projection" : ""
                 } ${interactive ? "seat-tile-interactive" : ""} ${isSelected ? "seat-selected" : ""} ${
+                  isLotteryTarget && lotteryPhase === "spinning" ? "seat-lottery-spin" : ""
+                } ${isLotteryTarget && lotteryPhase === "revealed" ? "seat-lottery-winner" : ""} ${
                   absentMode && interactive ? "ring-1 ring-slate-300" : ""
                 } ${bonusMode && student && interactive ? "ring-1 ring-amber-300" : ""}`}
                 aria-label={student ? `${student.name} 座位` : `空位 ${r + 1}-${c + 1}`}
@@ -133,6 +142,10 @@ export function SeatingBoard({
             );
           }),
         )}
+      </div>
+      {lotteryPanel}
+      <div className={projection ? "podium podium-bottom podium-projection" : "podium podium-bottom"}>
+        講台
       </div>
     </div>
   );

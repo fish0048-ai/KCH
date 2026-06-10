@@ -238,7 +238,7 @@ body {
 
 .podium {
   position: relative;
-  margin: 0 auto 1rem;
+  margin: 0 auto;
   width: min(280px, 70%);
   padding: 0.55rem 1rem;
   text-align: center;
@@ -246,22 +246,32 @@ body {
   font-weight: 700;
   letter-spacing: 0.2em;
   color: var(--brand-dark);
-  background: linear-gradient(180deg, #f3f8fb 0%, #e4eef5 100%);
   border: 1px solid #c5d9e6;
-  border-radius: 10px 10px 4px 4px;
   box-shadow: 0 8px 20px -14px rgba(15, 74, 97, 0.55);
 }
 
-.podium::before {
+.podium-bottom {
+  margin-top: 1rem;
+  background: linear-gradient(0deg, #e4eef5 0%, #f3f8fb 100%);
+  border-radius: 4px 4px 10px 10px;
+}
+
+.podium-bottom::before {
   content: "";
   position: absolute;
   left: 50%;
-  bottom: -8px;
+  top: -8px;
+  bottom: auto;
   transform: translateX(-50%);
   width: 65%;
   height: 8px;
   background: #b8cdd9;
-  border-radius: 0 0 6px 6px;
+  border-radius: 6px 6px 0 0;
+}
+
+.seating-board {
+  display: flex;
+  flex-direction: column;
 }
 
 .seat-tile {
@@ -443,7 +453,50 @@ body {
   width: min(360px, 80%);
   padding: 0.75rem 1.25rem;
   font-size: 0.95rem;
-  margin-bottom: 1.25rem;
+  margin-top: 1.25rem;
+}
+
+.lottery-panel {
+  margin: 1rem auto 0;
+  width: min(100%, 520px);
+}
+
+.lottery-panel-inner {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: linear-gradient(180deg, #fffdf8 0%, #fff 100%);
+  padding: 0.85rem 1rem;
+  box-shadow: 0 10px 28px -18px rgba(15, 28, 46, 0.25);
+}
+
+.lottery-panel-compact .lottery-panel-inner {
+  padding: 0.75rem 1rem;
+}
+
+.seat-lottery-spin {
+  z-index: 2;
+  transform: scale(1.06);
+  box-shadow: 0 0 0 3px rgba(232, 168, 56, 0.9);
+  animation: lottery-seat-pulse 0.2s ease infinite;
+}
+
+.seat-lottery-winner {
+  z-index: 2;
+  transform: scale(1.1);
+  box-shadow:
+    0 0 0 4px #e8a838,
+    0 0 0 9px rgba(232, 168, 56, 0.35);
+  animation: pulse-ring 1.2s ease infinite;
+}
+
+@keyframes lottery-seat-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 3px rgba(232, 168, 56, 0.9);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(232, 168, 56, 0.45);
+  }
 }
 
 .seat-tile-projection {

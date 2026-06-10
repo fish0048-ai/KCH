@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { SeatingBoard } from "@/components/seating/SeatingBoard";
-import { LiveLotteryOverlay } from "@/components/seating/LiveLotteryOverlay";
 import { BonusFlashBanner } from "@/components/seating/BonusFlashBanner";
 import { listGroups, subscribeSeating, subscribeStudents } from "@/lib/firebase/seating";
 import type { Group, SeatingState, Student } from "@/types/seating";
@@ -47,12 +46,8 @@ export function StudentSeatingView({
 
   const currentGroup = groups.find((g) => g.id === groupId);
   const isPublished = Boolean(currentGroup?.published && state.published);
-
-  const lotteryStudent = useMemo(() => {
-    const id = state.live?.lottery?.studentId;
-    if (!id) return null;
-    return students.find((s) => s.id === id) ?? null;
-  }, [state.live?.lottery?.studentId, students]);
+  const lottery = state.live?.lottery;
+  const lotteryActive = Boolean(lottery?.open && lottery.phase !== "idle");
 
   if (loading) {
     return (
@@ -109,11 +104,8 @@ export function StudentSeatingView({
             mode="result"
             studentView
             projection={projection}
-          />
-          <LiveLotteryOverlay
-            lottery={state.live?.lottery}
-            student={lotteryStudent}
-            projection={projection}
+            highlightStudentId={lotteryActive ? lottery?.studentId : null}
+            lotteryPhase={lotteryActive ? lottery?.phase : null}
           />
           <BonusFlashBanner flash={state.live?.bonusFlash} projection={projection} />
         </div>

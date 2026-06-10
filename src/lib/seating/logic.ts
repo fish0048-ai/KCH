@@ -128,3 +128,10 @@ export function resolveSeatStudentId(
 export function getSeatedStudentIds(state: SeatingState): Set<string> {
   return new Set(Object.values(mergedResultAssignments(state)));
 }
+
+export function findSeatKeyForStudent(
+  state: SeatingState,
+  studentId: string,
+): string | undefined {
+  return Object.entries(mergedResultAssignments(state)).find(([, id]) => id === studentId)?.[0];
+}
