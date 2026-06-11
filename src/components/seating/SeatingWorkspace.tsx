@@ -332,7 +332,7 @@ export function SeatingWorkspace() {
         <header className="class-screen-header">
           <div className="class-screen-title-row">
             <h2 className="class-screen-title">{currentGroup?.name ?? "座位表"}</h2>
-            <span className="badge badge-brand">上課投影</span>
+            <span className="badge badge-brand">● 上課中</span>
           </div>
           <div className="classroom-lottery-bar">{lotteryPanel}</div>
           <div className="class-screen-meta">

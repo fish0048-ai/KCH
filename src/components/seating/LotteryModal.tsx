@@ -88,7 +88,7 @@ export function LotteryModal({
             type="button"
             onClick={startDraw}
             disabled={spinning || candidates.length === 0}
-            className="btn btn-primary disabled:opacity-50"
+            className="btn btn-accent disabled:opacity-50"
           >
             {spinning ? "抽籤中…" : "開始抽籤"}
           </button>

@@ -25,7 +25,7 @@ export function AppNav() {
   const { user, isTeacher, logout, signInWithGoogle, configured } = useAuth();
 
   return (
-    <header className="sticky top-0 z-40 border-b border-[#0a3344] bg-gradient-to-r from-[#0c3d52] via-[#145f7a] to-[#1a6b8a] text-white shadow-lg">
+    <header className="app-nav sticky top-0 z-40 text-white">
       <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-3 px-4 py-3">
         <Link href="/" className="group flex items-center gap-2.5">
           <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/15 text-sm font-bold ring-1 ring-white/20">
