@@ -13,6 +13,7 @@ interface SeatingBoardProps {
   showScores?: boolean;
   projection?: boolean;
   classroomFit?: boolean;
+  classScreen?: boolean;
   selectedSeat?: string | null;
   highlightStudentId?: string | null;
   lotteryPhase?: LotteryPhase | null;
@@ -49,6 +50,7 @@ export function SeatingBoard({
   showScores = false,
   projection = false,
   classroomFit = false,
+  classScreen = false,
   selectedSeat,
   highlightStudentId,
   lotteryPhase,
@@ -57,8 +59,14 @@ export function SeatingBoard({
 }: SeatingBoardProps) {
   const map = studentMap(students);
   const { rows, cols } = state;
-  const minSeat = classroomFit ? 52 : projection ? 88 : 58;
-  const fitClass = classroomFit ? "classroom-board" : projection ? "projection-board" : "card p-5 sm:p-6";
+  const minSeat = classScreen ? 56 : classroomFit ? 52 : projection ? 88 : 58;
+  const fitClass = classScreen
+    ? "class-screen-board-inner"
+    : classroomFit
+      ? "classroom-board"
+      : projection
+        ? "projection-board"
+        : "card p-5 sm:p-6";
 
   const grid = (
     <div

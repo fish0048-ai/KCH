@@ -6,6 +6,7 @@ import { LotteryModal } from "@/components/seating/LotteryModal";
 import { BonusFlashBanner } from "@/components/seating/BonusFlashBanner";
 import { ImportPanel } from "@/components/seating/ImportPanel";
 import { OneClickImport } from "@/components/seating/OneClickImport";
+import { useWorkspaceMode } from "@/contexts/WorkspaceModeContext";
 import {
   generateSeating,
   swapAssignments,
@@ -57,6 +58,9 @@ function ChipButton({
 }
 
 export function SeatingWorkspace() {
+  const { mode, setMode, teacherToolsOpen, setTeacherToolsOpen } = useWorkspaceMode();
+  const isClassScreen = mode === "class";
+
   const [groups, setGroups] = useState<Group[]>([]);
   const [groupId, setGroupId] = useState("");
   const [students, setStudents] = useState<Student[]>([]);
@@ -72,7 +76,7 @@ export function SeatingWorkspace() {
   const [lotteryPhase, setLotteryPhase] = useState<LotteryPhase | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
-  const [asideOpen, setAsideOpen] = useState(false);
+  const [asideOpen, setAsideOpen] = useState(true);
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
   const stateRef = useRef(state);
@@ -94,6 +98,28 @@ export function SeatingWorkspace() {
       unsubSeating();
     };
   }, [groupId, reloadKey]);
+
+  useEffect(() => {
+    if (isClassScreen) {
+      setViewMode("result");
+      setAsideOpen(false);
+      setAdvancedOpen(false);
+      setBonusMode(true);
+      setSelectedSeat(null);
+    }
+  }, [isClassScreen]);
+
+  const enterClassScreen = () => {
+    setMode("class");
+    setTeacherToolsOpen(false);
+    setViewMode("result");
+    setStatus(null);
+  };
+
+  const enterPrepScreen = () => {
+    setMode("prep");
+    setTeacherToolsOpen(false);
+  };
 
   const persist = useCallback(
     async (next: SeatingState, message?: string) => {
@@ -139,13 +165,13 @@ export function SeatingWorkspace() {
               },
             },
           },
-          `${delta > 0 ? `+${delta}` : delta} 分 · 已同步雲端`,
+          isClassScreen ? undefined : `${delta > 0 ? `+${delta}` : delta} 分 · 已同步雲端`,
         );
       } catch {
         setStatus("加分同步失敗，請檢查網路後重試");
       }
     },
-    [groupId, currentGroup?.name, students, persist],
+    [groupId, currentGroup?.name, students, persist, isClassScreen],
   );
 
   const updateLiveLottery = useCallback(
@@ -165,7 +191,15 @@ export function SeatingWorkspace() {
     return students.filter((s) => ids.has(s.id));
   }, [students, state]);
 
-  const handleSeatClick = (key: string) => {
+  const handleClassSeatClick = (key: string) => {
+    if (bonusMode) {
+      const studentId = resolveSeatStudentId(state, key, "result");
+      if (!studentId) return;
+      void awardBonus(studentId, 1, "seat");
+    }
+  };
+
+  const handlePrepSeatClick = (key: string) => {
     if (absentMode) {
       const absent = state.absent.includes(key)
         ? state.absent.filter((k) => k !== key)
@@ -292,9 +326,95 @@ export function SeatingWorkspace() {
     />
   );
 
+  if (isClassScreen) {
+    return (
+      <div className="class-screen">
+        <header className="class-screen-header">
+          <div className="class-screen-title-row">
+            <h2 className="class-screen-title">{currentGroup?.name ?? "座位表"}</h2>
+            <span className="badge badge-brand">上課投影</span>
+          </div>
+          <div className="classroom-lottery-bar">{lotteryPanel}</div>
+          <div className="class-screen-meta">
+            <BonusFlashBanner flash={state.live?.bonusFlash} inline />
+            {bonusMode ? (
+              <span className="text-xs text-[var(--ink-muted)]">點選座位加分 · 抽籤結果會框選座位</span>
+            ) : null}
+          </div>
+        </header>
+
+        <div className="class-screen-board">
+          <SeatingBoard
+            state={state}
+            students={students}
+            mode="result"
+            studentView
+            bonusMode={bonusMode}
+            showScores={showScores}
+            classroomFit
+            classScreen
+            highlightStudentId={lotteryHighlightId}
+            lotteryPhase={lotteryPhase}
+            onSeatClick={handleClassSeatClick}
+          />
+        </div>
+
+        <button
+          type="button"
+          className="teacher-fab"
+          onClick={() => setTeacherToolsOpen(!teacherToolsOpen)}
+          aria-expanded={teacherToolsOpen}
+        >
+          {teacherToolsOpen ? "收合" : "教師"}
+        </button>
+
+        {teacherToolsOpen ? (
+          <div className="teacher-tools-panel card">
+            <p className="section-label">教師操作（不建議投影此區）</p>
+            <div className="flex flex-wrap items-center gap-2">
+              <select
+                value={groupId}
+                onChange={(e) => setGroupId(e.target.value)}
+                className="select w-auto min-w-[120px] text-sm font-semibold"
+              >
+                {groups.map((g) => (
+                  <option key={g.id} value={g.id}>
+                    {g.name}
+                  </option>
+                ))}
+              </select>
+              <ChipButton active={bonusMode} warn onClick={() => setBonusMode((v) => !v)}>
+                加分
+              </ChipButton>
+              <ChipButton active={showScores} onClick={() => setShowScores((v) => !v)}>
+                成績
+              </ChipButton>
+              <button type="button" onClick={() => handlePublish(true)} className="btn btn-success btn-sm">
+                公布
+              </button>
+              <button type="button" onClick={enterPrepScreen} className="btn btn-ghost btn-sm">
+                編排後台
+              </button>
+            </div>
+            {status ? <p className="mt-2 text-xs text-[var(--ink-muted)]">{status}</p> : null}
+          </div>
+        ) : null}
+      </div>
+    );
+  }
+
   return (
-    <div className="classroom-shell">
+    <div className="classroom-shell prep-shell">
       <header className="classroom-header card">
+        <div className="mode-switcher">
+          <button type="button" className="mode-tab mode-tab-inactive" onClick={enterClassScreen}>
+            📺 上課投影
+          </button>
+          <button type="button" className="mode-tab mode-tab-active">
+            ⚙️ 編排後台
+          </button>
+        </div>
+
         <div className="classroom-header-main">
           <div className="classroom-title-group">
             <h2 className="classroom-title">{currentGroup?.name ?? "梅花座位表"}</h2>
@@ -319,7 +439,7 @@ export function SeatingWorkspace() {
               onClick={() => setAsideOpen((v) => !v)}
               className={`btn btn-chip ${asideOpen ? "btn-chip-active" : ""}`}
             >
-              {asideOpen ? "◀ 收合編排" : "▶ 編排"}
+              {asideOpen ? "◀ 收合編排" : "▶ 編排面板"}
             </button>
             <ChipButton active={bonusMode} warn onClick={() => setBonusMode((v) => !v)}>
               ⭐ 加分
@@ -333,21 +453,21 @@ export function SeatingWorkspace() {
             <button type="button" onClick={() => handlePublish(true)} className="btn btn-success btn-sm">
               公布
             </button>
-            <button type="button" onClick={() => handlePublish(false)} className="btn btn-ghost btn-sm">
-              取消公布
+            <button type="button" onClick={enterClassScreen} className="btn btn-primary btn-sm">
+              開始上課投影
             </button>
           </div>
         </div>
 
-        <div className="classroom-lottery-bar">{lotteryPanel}</div>
+        <p className="prep-hint">
+          此模式可編輯格局、封鎖／固定座位、梅花座隨機排座。學生不會看到黃色固定標記；完成後請切換「上課投影」。
+        </p>
 
         <div className="classroom-header-meta">
-          <BonusFlashBanner flash={state.live?.bonusFlash} inline />
           {status ? <span className="badge badge-brand">{status}</span> : null}
-          {bonusMode ? <span className="badge badge-muted">加分同步雲端</span> : null}
           {publicUrl ? (
             <a href={publicUrl} className="classroom-student-link" target="_blank" rel="noreferrer">
-              學生連結
+              學生課後連結
             </a>
           ) : null}
         </div>
@@ -355,95 +475,116 @@ export function SeatingWorkspace() {
 
       <div className={`classroom-body ${asideOpen ? "classroom-body-aside-open" : ""}`}>
         {asideOpen ? (
-        <aside className="classroom-aside card">
-          <p className="section-label">編排</p>
-          <div className="grid grid-cols-2 gap-1.5 rounded-xl bg-[#f4f7fb] p-1">
-            <button
-              type="button"
-              onClick={() => setViewMode("edit")}
-              className={`rounded-lg py-1.5 text-[11px] font-bold ${
-                viewMode === "edit" ? "bg-white text-[var(--brand-dark)] shadow-sm" : "text-[var(--ink-muted)]"
-              }`}
-            >
-              編輯
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode("result")}
-              className={`rounded-lg py-1.5 text-[11px] font-bold ${
-                viewMode === "result" ? "bg-white text-[var(--brand-dark)] shadow-sm" : "text-[var(--ink-muted)]"
-              }`}
-            >
-              結果
-            </button>
-          </div>
-
-          <div className="mt-2 grid grid-cols-2 gap-1.5">
-            <label className="text-[10px] text-[var(--ink-muted)]">
-              列
-              <input id="numRows" type="number" min={1} max={12} defaultValue={state.rows} className="input mt-0.5 py-1 text-xs" />
-            </label>
-            <label className="text-[10px] text-[var(--ink-muted)]">
-              行
-              <input id="numCols" type="number" min={1} max={12} defaultValue={state.cols} className="input mt-0.5 py-1 text-xs" />
-            </label>
-          </div>
-
-          {viewMode === "edit" ? (
-            <div className="mt-2 space-y-1.5">
+          <aside className="classroom-aside card">
+            <p className="section-label">編排後台</p>
+            <div className="grid grid-cols-2 gap-1.5 rounded-xl bg-[#f4f7fb] p-1">
               <button
                 type="button"
-                onClick={() => setEditMode("block")}
-                className={`btn w-full py-1.5 text-[11px] ${editMode === "block" ? "btn-primary" : "btn-ghost"}`}
-              >
-                封鎖
-              </button>
-              <button
-                type="button"
-                onClick={() => setEditMode("fix")}
-                className={`btn w-full py-1.5 text-[11px] ${
-                  editMode === "fix" ? "bg-[var(--accent)] text-white" : "btn-ghost"
+                onClick={() => setViewMode("edit")}
+                className={`rounded-lg py-1.5 text-[11px] font-bold ${
+                  viewMode === "edit" ? "bg-white text-[var(--brand-dark)] shadow-sm" : "text-[var(--ink-muted)]"
                 }`}
               >
-                固定
+                編輯格局
               </button>
-              {editMode === "fix" ? (
-                <div className="grid grid-cols-2 gap-1">
-                  <ChipButton active={fixSubMode === "draft"} onClick={() => setFixSubMode("draft")}>
-                    指定
-                  </ChipButton>
-                  <ChipButton active={fixSubMode === "lock"} onClick={() => setFixSubMode("lock")}>
-                    鎖定
-                  </ChipButton>
-                </div>
-              ) : null}
-            </div>
-          ) : (
-            <div className="mt-2 space-y-1.5">
-              <p className="rounded-lg bg-[#f4f7fb] px-2 py-1.5 text-[10px] text-[var(--ink-muted)]">
-                座位 <strong>{availableCount}</strong> / {students.length}
-              </p>
-              <button type="button" onClick={applyLayout} className="btn btn-ghost w-full py-1.5 text-[11px]">
-                套用格局
-              </button>
-              <button type="button" onClick={generate} className="btn btn-primary w-full py-1.5 text-[11px]">
-                產生座位
-              </button>
-              <button type="button" onClick={generate} className="btn btn-ghost w-full py-1.5 text-[11px]">
-                重新隨機
+              <button
+                type="button"
+                onClick={() => setViewMode("result")}
+                className={`rounded-lg py-1.5 text-[11px] font-bold ${
+                  viewMode === "result" ? "bg-white text-[var(--brand-dark)] shadow-sm" : "text-[var(--ink-muted)]"
+                }`}
+              >
+                座位結果
               </button>
             </div>
-          )}
 
-          <div className="mt-2 space-y-1 border-t border-[var(--line)] pt-2">
-            <button type="button" onClick={() => void persist({ ...state, bonus: {} })} className="btn btn-ghost w-full py-1.5 text-[11px]">
-              清除加分
-            </button>
-            <button type="button" onClick={handleBatchSync} disabled={syncing} className="btn btn-ghost w-full py-1.5 text-[11px]">
-              {syncing ? "上傳中" : "補傳加分"}
-            </button>
-          </div>
-        </aside>
+            <div className="mt-2 grid grid-cols-2 gap-1.5">
+              <label className="text-[10px] text-[var(--ink-muted)]">
+                列
+                <input id="numRows" type="number" min={1} max={12} defaultValue={state.rows} className="input mt-0.5 py-1 text-xs" />
+              </label>
+              <label className="text-[10px] text-[var(--ink-muted)]">
+                行
+                <input id="numCols" type="number" min={1} max={12} defaultValue={state.cols} className="input mt-0.5 py-1 text-xs" />
+              </label>
+            </div>
+
+            {viewMode === "edit" ? (
+              <div className="mt-2 space-y-1.5">
+                <button
+                  type="button"
+                  onClick={() => setEditMode("block")}
+                  className={`btn w-full py-1.5 text-[11px] ${editMode === "block" ? "btn-primary" : "btn-ghost"}`}
+                >
+                  封鎖座位
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEditMode("fix")}
+                  className={`btn w-full py-1.5 text-[11px] ${
+                    editMode === "fix" ? "bg-[var(--accent)] text-white" : "btn-ghost"
+                  }`}
+                >
+                  固定座位
+                </button>
+                {editMode === "fix" ? (
+                  <div className="grid grid-cols-2 gap-1">
+                    <ChipButton active={fixSubMode === "draft"} onClick={() => setFixSubMode("draft")}>
+                      ① 指定
+                    </ChipButton>
+                    <ChipButton active={fixSubMode === "lock"} onClick={() => setFixSubMode("lock")}>
+                      ② 鎖定
+                    </ChipButton>
+                  </div>
+                ) : null}
+                {editMode === "fix" && fixSubMode === "lock" ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const fixed = { ...state.fixed, ...state.draft };
+                      void persist({ ...state, fixed, draft: {} }, "已鎖定全部指定");
+                    }}
+                    className="btn w-full bg-[var(--accent)] py-1.5 text-[11px] text-white"
+                  >
+                    鎖定全部指定
+                  </button>
+                ) : null}
+              </div>
+            ) : (
+              <div className="mt-2 space-y-1.5">
+                <p className="rounded-lg bg-[#f4f7fb] px-2 py-1.5 text-[10px] text-[var(--ink-muted)]">
+                  可座位 <strong>{availableCount}</strong> / {students.length}
+                  <br />
+                  <span className="text-[var(--brand)]">梅花座</span> 由後往前、中間向兩側
+                </p>
+                <button type="button" onClick={applyLayout} className="btn btn-ghost w-full py-1.5 text-[11px]">
+                  套用格局
+                </button>
+                <button type="button" onClick={generate} className="btn btn-primary w-full py-1.5 text-[11px]">
+                  產生座位表
+                </button>
+                <button type="button" onClick={generate} className="btn btn-ghost w-full py-1.5 text-[11px]">
+                  重新隨機
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void persist({ ...state, assignments: {} }, "已清除隨機結果")}
+                  className="btn w-full border-[#f5c4c4] bg-[var(--danger-soft)] py-1.5 text-[11px] text-[var(--danger)]"
+                >
+                  清除隨機結果
+                </button>
+              </div>
+            )}
+
+            <div className="mt-2 space-y-1 border-t border-[var(--line)] pt-2">
+              <button type="button" onClick={() => void persist({ ...state, bonus: {} })} className="btn btn-ghost w-full py-1.5 text-[11px]">
+                清除本堂加分
+              </button>
+              <button type="button" onClick={handleBatchSync} disabled={syncing} className="btn btn-ghost w-full py-1.5 text-[11px]">
+                {syncing ? "上傳中" : "補傳加分"}
+              </button>
+            </div>
+          </aside>
         ) : null}
 
         <div className="classroom-board-wrap">
@@ -451,7 +592,7 @@ export function SeatingWorkspace() {
             state={state}
             students={students}
             mode={viewMode}
-            studentView={viewMode === "result"}
+            studentView={false}
             absentMode={absentMode}
             bonusMode={bonusMode}
             showScores={showScores}
@@ -459,7 +600,7 @@ export function SeatingWorkspace() {
             highlightStudentId={lotteryHighlightId}
             lotteryPhase={lotteryPhase}
             selectedSeat={selectedSeat}
-            onSeatClick={handleSeatClick}
+            onSeatClick={handlePrepSeatClick}
           />
         </div>
       </div>
@@ -470,19 +611,11 @@ export function SeatingWorkspace() {
           onClick={() => setAdvancedOpen((v) => !v)}
           className="classroom-advanced-toggle"
         >
-          <span className="text-sm font-bold text-[var(--ink)]">進階設定</span>
+          <span className="text-sm font-bold text-[var(--ink)]">資料匯入與進階</span>
           <span className="text-xs text-[var(--ink-muted)]">{advancedOpen ? "收合 ▲" : "展開 ▼"}</span>
         </button>
         {advancedOpen ? (
           <div className="space-y-4 border-t border-[var(--line)] p-4">
-            {publicUrl ? (
-              <p className="text-xs text-[var(--ink-muted)]">
-                學生課後連結：
-                <a href={publicUrl} className="ml-1 font-semibold text-[var(--brand)] underline">
-                  {publicUrl}
-                </a>
-              </p>
-            ) : null}
             <OneClickImport
               onDone={() => {
                 listGroups().then(setGroups);
